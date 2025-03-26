@@ -29,4 +29,9 @@ mkdir -p "$DIST"
 build linux amd64
 build darwin amd64
 
-ghr -u fireworq -r "$APPLICATION" -b "$(ghch --latest --format=markdown)" "v$VERSION" "$DIST"
+#ghr -u fireworq -r "$APPLICATION" -b "$(ghch --latest --format=markdown)" "v$VERSION" "$DIST"
+
+ghr -u ${GITHUB_REPOSITORY_OWNER:-$(git config --get remote.origin.url | sed -n 's/.*github.com[:/]\([^/]*\).*/\1/p')} \
+    -r fireworq \
+    -b "$(ghch --latest --format=markdown)" \
+    "v$VERSION" "$DIST"
