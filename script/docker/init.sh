@@ -1,5 +1,5 @@
 type docker-compose >/dev/null || {
-    curl -L https://github.com/docker/compose/releases/download/1.11.2/run.sh > docker-compose
+    curl -L https://github.com/docker/compose/releases/download/1.29.2/run.sh > docker-compose
     chmod +x docker-compose
     DOCKER_COMPOSE='./docker-compose'
 }
