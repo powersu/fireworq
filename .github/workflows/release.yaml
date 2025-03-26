@@ -62,5 +62,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64, linux/arm64
-          tags: fullpowers/fireworq:${{ steps.metadata.outputs.tags }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/fireworq:latest
+            ${{ secrets.DOCKER_USERNAME }}/fireworq:${{ github.sha }}
           labels: ${{ steps.metadata.outputs.labels }}
