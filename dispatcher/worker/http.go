@@ -94,6 +94,10 @@ func (worker *HTTPWorker) Work(job jobqueue.Job) *jobqueue.Result {
 	}
 	req.Header.Add("User-Agent", userAgent)
 
+	// add X-Attempt, start from 1
+	attemptCount := job.FailCount() + 1
+	req.Header.Add("X-Attempt", strconv.FormatUint(uint64(attemptCount), 10))
+
 	resp, err := client.Do(req)
 
 	worker.Logger.Debug().
