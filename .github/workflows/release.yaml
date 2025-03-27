@@ -63,6 +63,6 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/fireworq:latest
-            ${{ secrets.DOCKER_USERNAME }}/fireworq:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/fireworq:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/fireworq:${{ github.sha }}
           labels: ${{ steps.metadata.outputs.labels }}
