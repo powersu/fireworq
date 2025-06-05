@@ -47,10 +47,12 @@ func (app *Application) serveJob(w http.ResponseWriter, req *http.Request) error
 
 // IncomingJob describes a job to be pushed in a queue.
 type IncomingJob struct {
-	CategoryField string          `json:"category"`
-	URLField      string          `json:"url"`
-	PayloadField  json.RawMessage `json:"payload"`
-	payloadField  string
+	CategoryField         string          `json:"category"`
+	URLField              string          `json:"url"`
+	PayloadField          json.RawMessage `json:"payload"`
+	payloadField          string
+	CallbackURLField      string `json:"callback_url"`          // permanent fail or success
+	DeferredCallbackField string `json:"deferred_callback_url"` // deffered
 
 	RunAfterField   uint `json:"run_after"`   // seconds
 	TimeoutField    uint `json:"timeout"`     // seconds
@@ -126,4 +128,14 @@ func (job *IncomingJob) RetryDelay() uint {
 // Timeout returns the timeout of the job.
 func (job *IncomingJob) Timeout() uint {
 	return job.TimeoutField
+}
+
+// get call back url for success or permanent
+func (job *IncomingJob) CallbackURL() string {
+	return job.CallbackURLField
+}
+
+// get call back url for deferred
+func (job *IncomingJob) DeferredCallbackURL() string {
+	return job.DeferredCallbackField
 }

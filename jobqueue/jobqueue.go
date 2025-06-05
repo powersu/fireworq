@@ -1,6 +1,12 @@
 package jobqueue
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/fireworq/fireworq/jobqueue/logger"
 	"github.com/fireworq/fireworq/model"
 
@@ -105,6 +111,12 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 		q.stats.succeed(1)
 		q.stats.complete(1)
 		q.stats.elapsed(logger.Elapsed(loggable))
+
+		// callback when success
+		if callbackJob, ok := job.(IncomingJob); ok && callbackJob.CallbackURL() != "" {
+			go q.sendCallback(callbackJob.CallbackURL(), job, res, "success")
+		}
+
 		q.impl.Delete(job)
 	} else if res.IsPermanentFailure() || !j.canRetry() {
 		logger.Info(q.name, "complete", loggable, res.Message)
@@ -112,6 +124,12 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 		q.stats.permanentlyFail(1)
 		q.stats.complete(1)
 		q.stats.elapsed(logger.Elapsed(loggable))
+
+		// callback when permanent fail
+		if callbackJob, ok := job.(IncomingJob); ok && callbackJob.CallbackURL() != "" {
+			go q.sendCallback(callbackJob.CallbackURL(), job, res, "failed")
+		}
+
 		if failureLog, ok := q.FailureLog(); ok {
 			err := failureLog.Add(job, res)
 			if err != nil {
@@ -122,6 +140,12 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 	} else {
 		logger.Info(q.name, "retry", loggable, res.Message)
 		q.stats.fail(1)
+
+		// callback if deferred callback is provided
+		if callbackJob, ok := job.(IncomingJob); ok && callbackJob.DeferredCallbackURL() != "" {
+			go q.sendCallback(callbackJob.DeferredCallbackURL(), job, res, "deferred")
+		}
+
 		q.impl.Update(job, &nextJob{j})
 	}
 }
@@ -169,4 +193,80 @@ type ConnectionClosedError struct{}
 
 func (e *ConnectionClosedError) Error() string {
 	return "connection has been closed"
+}
+
+func (q *jobQueue) sendCallback(callbackURL string, job Job, res *Result, callbackType string) {
+
+	maxRetries := job.RetryCount() // 最大重試次數
+	retriesLeft := int(maxRetries) - int(job.FailCount())
+	if retriesLeft < 0 {
+		retriesLeft = 0
+	}
+
+	// prepare the data for callback
+	callbackData := struct {
+		JobID        uint64    `json:"job_id"`
+		Queue        string    `json:"queue"`
+		Category     string    `json:"category"`
+		URL          string    `json:"url"`
+		Payload      string    `json:"payload"`
+		Status       string    `json:"status"`
+		Result       *Result   `json:"result"`
+		FailCount    uint      `json:"fail_count"`
+		MaxRetries   uint      `json:"max_retries"`
+		RetriesLeft  int       `json:"retries_left"`
+		RetryDelay   uint      `json:"retry_delay"`
+		CallbackType string    `json:"callback_type"` // type of callback：success, failed, deferred
+		Timestamp    time.Time `json:"timestamp"`
+	}{
+		JobID:        job.ToLoggable().ID(),
+		Queue:        q.name,
+		Category:     job.ToLoggable().Category(),
+		URL:          job.URL(),
+		Payload:      job.Payload(),
+		Status:       res.Status,
+		Result:       res,
+		FailCount:    job.FailCount(),
+		MaxRetries:   maxRetries,
+		RetriesLeft:  retriesLeft,
+		RetryDelay:   job.RetryDelay(),
+		CallbackType: callbackType,
+		Timestamp:    time.Now(),
+	}
+
+	// serialize  JSON
+	jsonData, err := json.Marshal(callbackData)
+	if err != nil {
+		log.Error().Msgf("Failed to marshal callback data: %s", err)
+		return
+	}
+
+	// send http request
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	req, err := http.NewRequest("POST", callbackURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Error().Msgf("Failed to create callback request: %s", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Fireworq-Callback/1.0")
+
+	// send
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error().Msgf("Failed to send callback request: %s", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// log result
+	log.Info().
+		Str("job_id", fmt.Sprintf("%d", job.ToLoggable().ID())).
+		Str("queue", q.name).
+		Str("callback_url", callbackURL).
+		Str("callback_type", callbackType).
+		Int("status_code", resp.StatusCode).
+		Msg("Callback sent")
 }

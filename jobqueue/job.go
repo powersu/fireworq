@@ -11,6 +11,8 @@ type IncomingJob interface {
 	Category() string
 	URL() string
 	Payload() string
+	CallbackURL() string         // permanent fail or success
+	DeferredCallbackURL() string // deffered
 
 	NextDelay() uint64 // milliseconds
 	Timeout() uint     // seconds
