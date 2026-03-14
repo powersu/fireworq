@@ -18,6 +18,7 @@ type InspectedJob struct {
 	FailCount  uint            `json:"fail_count"`
 	MaxRetries uint            `json:"max_retries"`
 	RetryDelay uint            `json:"retry_delay"`
+	FailureURL string          `json:"failure_url,omitempty"`
 }
 
 // InspectedJobs describes a (page of) job list in a queue.

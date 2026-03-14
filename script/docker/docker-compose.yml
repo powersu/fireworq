@@ -1,4 +1,4 @@
-version: '2'
+version: "2"
 services:
   code:
     extends:
@@ -26,8 +26,8 @@ services:
       - code
     depends_on:
       - mysql
-    links:
-      - mysql
+    #    links:
+    #      - mysql
     tty: true
   mysql:
     extends:

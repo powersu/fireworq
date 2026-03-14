@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `{{.JobQueue}}` (
   `url` BLOB,
   `payload` MEDIUMBLOB,
   `timeout` INT UNSIGNED,
+  `failure_url` BLOB,
 
   PRIMARY KEY (`job_id`),
   KEY `grab` (`status`, `next_try`)

@@ -52,10 +52,11 @@ type IncomingJob struct {
 	PayloadField  json.RawMessage `json:"payload"`
 	payloadField  string
 
-	RunAfterField   uint `json:"run_after"`   // seconds
-	TimeoutField    uint `json:"timeout"`     // seconds
-	RetryDelayField uint `json:"retry_delay"` // seconds
-	MaxRetriesField uint `json:"max_retries"`
+	RunAfterField   uint   `json:"run_after"`    // seconds
+	TimeoutField    uint   `json:"timeout"`      // seconds
+	RetryDelayField uint   `json:"retry_delay"`  // seconds
+	MaxRetriesField uint   `json:"max_retries"`
+	FailureURLField string `json:"failure_url"`
 }
 
 // PushResult describes a job pushed to a queue.
@@ -126,4 +127,9 @@ func (job *IncomingJob) RetryDelay() uint {
 // Timeout returns the timeout of the job.
 func (job *IncomingJob) Timeout() uint {
 	return job.TimeoutField
+}
+
+// FailureURL returns the failure callback URL of the job.
+func (job *IncomingJob) FailureURL() string {
+	return job.FailureURLField
 }
