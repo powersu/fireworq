@@ -48,6 +48,10 @@ func (j *job) Timeout() uint {
 	return j.timeout
 }
 
+func (j *job) FailureURL() string {
+	return ""
+}
+
 const retryCount = 3
 
 func newTestJob(category, url, data string) jobqueue.IncomingJob {

@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // initialize the driver
+	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -87,6 +87,14 @@ func (q *jobQueue) Start() {
 		log.Panic().Msgf("Failed to create queue failure log table: %s", err)
 	}
 
+	// Add failure_url column if not exists (migration for existing tables).
+	// MySQL error 1060 (ER_DUP_FIELDNAME) means the column already exists.
+	if _, err := q.db.Exec(q.sql.alterAddFailureURL); err != nil {
+		if mysqlErr, ok := err.(*mysqldriver.MySQLError); !ok || mysqlErr.Number != 1060 {
+			log.Panic().Msgf("Failed to add failure_url column: %s", err)
+		}
+	}
+
 	q.connect()
 }
 
@@ -121,6 +129,7 @@ func (q *jobQueue) Push(j jobqueue.IncomingJob) (jobqueue.Job, error) {
 		job.URL(),
 		job.Payload(),
 		job.Timeout(),
+		job.FailureURL(),
 	)
 	if err != nil {
 		log.Debug().Msgf("Failed to insert a job: %s", err)
@@ -208,11 +217,13 @@ func (q *jobQueue) Pop(limit uint) ([]jobqueue.Job, error) {
 
 		for i := 0; rows.Next(); i++ {
 			var j job
-			if err := rows.Scan(&(j.id), &(j.category), &(j.url), &(j.payload), &(j.nextTry), &(j.status), &(j.createdAt), &(j.retryCount), &(j.retryDelay), &(j.failCount), &(j.timeout)); err != nil {
+			var failureURL sql.NullString
+			if err := rows.Scan(&(j.id), &(j.category), &(j.url), &(j.payload), &(j.nextTry), &(j.status), &(j.createdAt), &(j.retryCount), &(j.retryDelay), &(j.failCount), &(j.timeout), &failureURL); err != nil {
 				log.Debug().Msgf("Failed to scan selected jobs: %s", err)
 				return err
 			}
 			j.status = "grabbed"
+			j.failureURL = failureURL.String
 
 			ids[i] = j.id
 			results = append(results, &j)

@@ -13,20 +13,20 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
     - name: Test
       run: script/ci/test/docker-run
     - name: Setup Go for gcov2lcov
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v6
       with:
         go-version: 1.x
     - name: Convert coverage to lcov
-      uses: jandelgado/gcov2lcov-action@v1.0.9
+      uses: jandelgado/gcov2lcov-action@v1.2.0
       with:
         infile: profile.cov
         outfile: coverage.lcov
     - name: Report coverage to Coveralls
-      uses: coverallsapp/github-action@1.1.3
+      uses: coverallsapp/github-action@v2.3.6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: coverage.lcov

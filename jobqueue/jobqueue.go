@@ -118,6 +118,9 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 				log.Warn().Msg(err.Error())
 			}
 		}
+		if failureURL := job.FailureURL(); failureURL != "" {
+			go fireFailureCallback(failureURL, job, res, q.name)
+		}
 		q.impl.Delete(job)
 	} else {
 		logger.Info(q.name, "retry", loggable, res.Message)

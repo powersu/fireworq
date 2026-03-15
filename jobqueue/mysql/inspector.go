@@ -267,7 +267,8 @@ func (i *inspector) scan(s scanner) (*jobqueue.InspectedJob, error) {
 	var nextTry uint64
 	var retryCount uint
 
-	if err := s.Scan(&(j.ID), &(j.Category), &(j.URL), &(j.Payload), &nextTry, &(j.Status), &createdAt, &retryCount, &(j.RetryDelay), &(j.FailCount), &(j.Timeout)); err != nil {
+	var failureURL sql.NullString
+	if err := s.Scan(&(j.ID), &(j.Category), &(j.URL), &(j.Payload), &nextTry, &(j.Status), &createdAt, &retryCount, &(j.RetryDelay), &(j.FailCount), &(j.Timeout), &failureURL); err != nil {
 		return nil, err
 	}
 	if _, err := json.Marshal(j.Payload); err != nil {
@@ -279,6 +280,7 @@ func (i *inspector) scan(s scanner) (*jobqueue.InspectedJob, error) {
 	j.NextTry = time.Unix(int64(nextTry)/secInMillisec, int64(nextTry)%secInMillisec*int64(time.Millisecond))
 	j.CreatedAt = time.Unix(int64(createdAt)/secInMillisec, int64(createdAt)%secInMillisec*int64(time.Millisecond))
 	j.MaxRetries = j.FailCount + retryCount
+	j.FailureURL = failureURL.String
 
 	return &j, nil
 }

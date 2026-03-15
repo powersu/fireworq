@@ -60,6 +60,7 @@ type job struct {
 	retryDelay uint   // seconds
 	retryCount uint
 	failCount  uint
+	failureURL string
 }
 
 func (j *job) ID() uint64 {
@@ -96,6 +97,10 @@ func (j *job) FailCount() uint {
 
 func (j *job) Timeout() uint {
 	return j.timeout
+}
+
+func (j *job) FailureURL() string {
+	return j.failureURL
 }
 
 func (j *job) Status() string {

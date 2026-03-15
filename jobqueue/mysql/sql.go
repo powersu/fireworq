@@ -47,7 +47,8 @@ func (tn *tableName) makeQueries() *sqls {
 		inspectJobsAsc:     tn.makeQuery(tmplInspectJobsAsc),
 		failedJob:          tn.makeQuery(tmplFailedJob),
 		failedJobs:         tn.makeQuery(tmplFailedJobs),
-		recentlyFailedJobs: tn.makeQuery(tmplRecentlyFailedJobs),
+		recentlyFailedJobs:    tn.makeQuery(tmplRecentlyFailedJobs),
+		alterAddFailureURL:   tn.makeQuery(tmplAlterAddFailureURL),
 	}
 }
 
@@ -76,6 +77,7 @@ type sqls struct {
 	failedJob          string
 	failedJobs         string
 	recentlyFailedJobs string
+	alterAddFailureURL string
 }
 
 var (
@@ -98,6 +100,7 @@ var (
 	tmplFailedJob          *template.Template
 	tmplFailedJobs         *template.Template
 	tmplRecentlyFailedJobs *template.Template
+	tmplAlterAddFailureURL *template.Template
 )
 
 func mustLoadTemplate(name string) *template.Template {
@@ -138,4 +141,5 @@ func init() {
 	tmplFailedJob = mustLoadTemplate("query/failed_job")
 	tmplFailedJobs = mustLoadTemplate("query/failed_jobs")
 	tmplRecentlyFailedJobs = mustLoadTemplate("query/recently_failed_jobs")
+	tmplAlterAddFailureURL = mustLoadTemplate("query/alter_add_failure_url")
 }

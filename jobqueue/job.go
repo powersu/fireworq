@@ -16,6 +16,7 @@ type IncomingJob interface {
 	Timeout() uint     // seconds
 	RetryDelay() uint  // seconds
 	RetryCount() uint
+	FailureURL() string
 }
 
 // Job is an interface of jobs.
@@ -27,6 +28,7 @@ type Job interface {
 	RetryCount() uint
 	RetryDelay() uint
 	FailCount() uint
+	FailureURL() string
 
 	ToLoggable() logger.LoggableJob
 }

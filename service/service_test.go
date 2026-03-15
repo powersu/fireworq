@@ -1055,6 +1055,10 @@ func (job *incomingJob) Timeout() uint {
 	return uint(0)
 }
 
+func (job *incomingJob) FailureURL() string {
+	return ""
+}
+
 func newService() *Service {
 	return NewService(repository.NewRepositories())
 }

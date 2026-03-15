@@ -81,7 +81,7 @@ func parseCmdArgs(args []string) (*cmdArgs, error) {
 		fmt.Fprint(out, helpText)
 		for _, item := range config.Descriptions() {
 			fmt.Println("")
-			fmt.Fprintf(out, item.Describe(2, 80-4))
+			fmt.Fprint(out, item.Describe(2, 80-4))
 		}
 	}
 	flags.BoolVar(&parsed.showVersion, "v", false, "")
