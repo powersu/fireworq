@@ -347,4 +347,5 @@ func (j *job) RetryCount() uint               { return 0 }
 func (j *job) RetryDelay() uint               { return 0 }
 func (j *job) FailCount() uint                { return 0 }
 func (j *job) Timeout() uint                  { return 0 }
+func (j *job) FailureURL() string             { return "" }
 func (j *job) ToLoggable() logger.LoggableJob { return nil }

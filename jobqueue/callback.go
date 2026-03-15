@@ -2,7 +2,6 @@ package jobqueue
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -56,6 +55,6 @@ func fireFailureCallback(failureURL string, job Job, res *Result, queueName stri
 	if resp.StatusCode >= 400 {
 		log.Warn().Msgf("Failure callback to %s returned status %d", failureURL, resp.StatusCode)
 	} else {
-		log.Debug().Msgf(fmt.Sprintf("Failure callback sent to %s", failureURL))
+		log.Debug().Msgf("Failure callback sent to %s", failureURL)
 	}
 }

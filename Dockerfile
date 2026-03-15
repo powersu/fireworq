@@ -1,4 +1,4 @@
-FROM golang:1.24.3 as builder
+FROM golang:1.26.1 as builder
 ENV APP_DIR /go/src/github.com/fireworq/fireworq
 
 WORKDIR ${APP_DIR}
