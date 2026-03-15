@@ -23,6 +23,34 @@ Run a single test: `go test -run TestName -v ./path/to/package`
 
 Docker development: `script/docker/compose up` (builds and runs with MySQL). Use `script/docker/compose clean` when dependencies change.
 
+### Running Tests via Docker (Local)
+
+Prerequisites: the development docker-compose environment must be running (`script/docker/compose up`), which provides a `docker-mysql-1` container with MySQL.
+
+```bash
+podman run --rm --entrypoint bash \
+  --network container:docker-mysql-1 \
+  -v "d:/htdocs/CloudRecording/vmx-fireworq/fireworq://workspace" \
+  -w //workspace \
+  -e "FIREWORQ_MYSQL_DSN=nobody:nobody@tcp(localhost:3306)/fireworq" \
+  docker.io/library/docker-fireworq:latest \
+  -c "git config --global --add safe.directory /workspace && make generate && make test"
+```
+
+Summary only (shows PASS/FAIL per package):
+
+```bash
+podman run --rm --entrypoint bash \
+  --network container:docker-mysql-1 \
+  -v "d:/htdocs/CloudRecording/vmx-fireworq/fireworq://workspace" \
+  -w //workspace \
+  -e "FIREWORQ_MYSQL_DSN=nobody:nobody@tcp(localhost:3306)/fireworq" \
+  docker.io/library/docker-fireworq:latest \
+  -c "git config --global --add safe.directory /workspace && make generate && make test 2>&1 | grep -E '(^ok|^FAIL|build failed|PASS$|FAIL$)'"
+```
+
+This reuses the `docker-fireworq` image and connects to the running MySQL container via shared network. `make generate` regenerates embedded assets and mocks before running tests.
+
 ## Architecture
 
 ### Request Flow
