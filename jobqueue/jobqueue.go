@@ -118,9 +118,9 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 				log.Warn().Msg(err.Error())
 			}
 		}
-		if failureURL := job.FailureURL(); failureURL != "" {
-			go fireFailureCallback(failureURL, job, res, q.name)
-		}
+		// NOTE: failure callback HTTP POST disabled — dispatch statistics
+		// (stats package) now handles failure tracking via Redis.
+		// The failure_url field is still used to extract sub_id.
 		q.impl.Delete(job)
 	} else {
 		logger.Info(q.name, "retry", loggable, res.Message)

@@ -27,7 +27,7 @@ type runningQueue struct {
 func startJobQueue(q *model.Queue) *runningQueue {
 	jq := factory.Start(q)
 	if redisclient.IsEnabled() {
-		jq = stats.NewJobQueue(jq, stats.NewStatsWriter(redisclient.Client))
+		jq = stats.NewJobQueue(jq, stats.NewWriter(redisclient.Client))
 	}
 	d := dispatcher.Start(jq, q)
 	return &runningQueue{jq, d}

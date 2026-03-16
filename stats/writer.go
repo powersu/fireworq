@@ -9,14 +9,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// StatsWriter writes dispatch statistics to Redis using a pipeline.
-type StatsWriter struct {
+// Writer writes dispatch statistics to Redis using a pipeline.
+type Writer struct {
 	client *redis.Client
 }
 
-// NewStatsWriter creates a new StatsWriter backed by the given Redis client.
-func NewStatsWriter(client *redis.Client) *StatsWriter {
-	return &StatsWriter{client: client}
+// NewWriter creates a new Writer backed by the given Redis client.
+func NewWriter(client *redis.Client) *Writer {
+	return &Writer{client: client}
 }
 
 // RecordDispatch records a single dispatch result into the 5-minute
@@ -25,7 +25,7 @@ func NewStatsWriter(client *redis.Client) *StatsWriter {
 //
 // Errors are logged but never propagated — dispatch must not be
 // blocked by statistics failures.
-func (w *StatsWriter) RecordDispatch(subscribeID string, isSuccess bool, isPermanentFail bool) {
+func (w *Writer) RecordDispatch(subscribeID string, isSuccess bool, isPermanentFail bool) {
 	if w == nil || w.client == nil || subscribeID == "" {
 		return
 	}
