@@ -21,6 +21,8 @@ Tests require MySQL. Set `FIREWORQ_MYSQL_DSN` env var (e.g., `user:password@tcp(
 
 Run a single test: `go test -run TestName -v ./path/to/package`
 
+**Important:** Always run `make clean lint` (or at minimum `gofmt -d -s ./...`) before pushing. CI runs `gofmt -s` as part of `make lint` and will fail on formatting issues that `go test` alone does not catch.
+
 Docker development: `script/docker/compose up` (builds and runs with MySQL). Use `script/docker/compose clean` when dependencies change.
 
 ### Running Tests via Podman (Local)

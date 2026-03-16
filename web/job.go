@@ -52,9 +52,9 @@ type IncomingJob struct {
 	PayloadField  json.RawMessage `json:"payload"`
 	payloadField  string
 
-	RunAfterField   uint   `json:"run_after"`    // seconds
-	TimeoutField    uint   `json:"timeout"`      // seconds
-	RetryDelayField uint   `json:"retry_delay"`  // seconds
+	RunAfterField   uint   `json:"run_after"`   // seconds
+	TimeoutField    uint   `json:"timeout"`     // seconds
+	RetryDelayField uint   `json:"retry_delay"` // seconds
 	MaxRetriesField uint   `json:"max_retries"`
 	FailureURLField string `json:"failure_url"`
 }
