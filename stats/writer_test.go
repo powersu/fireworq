@@ -25,7 +25,7 @@ func bucketKeys(subID string, now time.Time) (fiveMin string, oneHour string) {
 
 func TestRecordDispatch_Success(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("100", true, false)
 
@@ -44,7 +44,7 @@ func TestRecordDispatch_Success(t *testing.T) {
 
 func TestRecordDispatch_RetryableFail(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("200", false, false)
 
@@ -61,7 +61,7 @@ func TestRecordDispatch_RetryableFail(t *testing.T) {
 
 func TestRecordDispatch_PermanentFail(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("300", false, true)
 
@@ -78,7 +78,7 @@ func TestRecordDispatch_PermanentFail(t *testing.T) {
 
 func TestRecordDispatch_MultipleCalls_Accumulate(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("400", true, false)
 	w.RecordDispatch("400", true, false)
@@ -96,7 +96,7 @@ func TestRecordDispatch_MultipleCalls_Accumulate(t *testing.T) {
 
 func TestRecordDispatch_TTL(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("500", true, false)
 
@@ -116,7 +116,7 @@ func TestRecordDispatch_TTL(t *testing.T) {
 
 func TestRecordDispatch_EmptySubscribeID(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("", true, false)
 
@@ -127,14 +127,14 @@ func TestRecordDispatch_EmptySubscribeID(t *testing.T) {
 }
 
 func TestRecordDispatch_NilWriter(t *testing.T) {
-	var w *StatsWriter
+	var w *Writer
 	// should not panic
 	w.RecordDispatch("100", true, false)
 }
 
 func TestRecordDispatch_ActiveSubscribers(t *testing.T) {
 	mr, client := setupMiniredis(t)
-	w := NewStatsWriter(client)
+	w := NewWriter(client)
 
 	w.RecordDispatch("600", true, false)
 	w.RecordDispatch("700", false, false)

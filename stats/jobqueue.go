@@ -7,12 +7,12 @@ import "github.com/fireworq/fireworq/jobqueue"
 // the inner queue unchanged.
 type JobQueue struct {
 	jobqueue.JobQueue
-	writer *StatsWriter
+	writer *Writer
 }
 
 // NewJobQueue returns a stats-tracking decorator around inner. If
 // writer is nil the inner queue is returned as-is (no-op).
-func NewJobQueue(inner jobqueue.JobQueue, writer *StatsWriter) jobqueue.JobQueue {
+func NewJobQueue(inner jobqueue.JobQueue, writer *Writer) jobqueue.JobQueue {
 	if writer == nil {
 		return inner
 	}

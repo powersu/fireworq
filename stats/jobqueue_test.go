@@ -67,7 +67,7 @@ func (q *mockJobQueue) Complete(job jobqueue.Job, res *jobqueue.Result) {
 func TestJobQueueDecorator_Success(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -99,7 +99,7 @@ func TestJobQueueDecorator_Success(t *testing.T) {
 func TestJobQueueDecorator_RetryableFail(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -123,7 +123,7 @@ func TestJobQueueDecorator_RetryableFail(t *testing.T) {
 func TestJobQueueDecorator_PermanentFail_ExplicitStatus(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -147,7 +147,7 @@ func TestJobQueueDecorator_PermanentFail_ExplicitStatus(t *testing.T) {
 func TestJobQueueDecorator_PermanentFail_RetriesExhausted(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -171,7 +171,7 @@ func TestJobQueueDecorator_PermanentFail_RetriesExhausted(t *testing.T) {
 func TestJobQueueDecorator_NoFailureURL_SkipsStats(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -197,7 +197,7 @@ func TestJobQueueDecorator_NoFailureURL_SkipsStats(t *testing.T) {
 func TestJobQueueDecorator_NoSubID_SkipsStats(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
@@ -232,7 +232,7 @@ func TestJobQueueDecorator_NilWriter_ReturnsInner(t *testing.T) {
 func TestJobQueueDecorator_MultipleDispatches(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	writer := NewStatsWriter(client)
+	writer := NewWriter(client)
 	inner := &mockJobQueue{}
 
 	jq := NewJobQueue(inner, writer)
