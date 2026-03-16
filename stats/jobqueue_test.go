@@ -46,7 +46,7 @@ type completedRecord struct {
 	res *jobqueue.Result
 }
 
-func (q *mockJobQueue) Stop() <-chan struct{}                          { return nil }
+func (q *mockJobQueue) Stop() <-chan struct{}                         { return nil }
 func (q *mockJobQueue) Push(job jobqueue.IncomingJob) (uint64, error) { return 0, nil }
 func (q *mockJobQueue) Pop(limit uint) ([]jobqueue.Job, error)        { return nil, nil }
 func (q *mockJobQueue) Name() string                                  { return "test" }
