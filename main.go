@@ -16,6 +16,7 @@ import (
 	"github.com/fireworq/fireworq/dispatcher"
 	"github.com/fireworq/fireworq/jobqueue/logger"
 	logwriter "github.com/fireworq/fireworq/log"
+	"github.com/fireworq/fireworq/redisclient"
 	repository "github.com/fireworq/fireworq/repository/factory"
 	"github.com/fireworq/fireworq/service"
 	"github.com/fireworq/fireworq/web"
@@ -57,6 +58,7 @@ func main() {
 	initProcess()
 	dispatcher.Init()
 	web.Init()
+	redisclient.Init()
 
 	startServer(accessLog)
 }
@@ -199,6 +201,8 @@ func initLogging(sig syscall.Signal) (accessLog logwriter.Writer) {
 }
 
 func startServer(accessLogWriter io.Writer) {
+	defer redisclient.Close()
+
 	log.Info().Msg("Starting a job dispatcher...")
 
 	repos := repository.NewRepositories()

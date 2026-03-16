@@ -187,7 +187,14 @@ Specifies maximum idle connections to keep per-host. This value works only when 
 		defaultValue: "0",
 		label:        "<seconds>",
 		description: `
-Specifies the maximum amount of time of an idle (keep-alive) connection will remain idle before closing itself. If zero, an idle connections will not be closed. 
+Specifies the maximum amount of time of an idle (keep-alive) connection will remain idle before closing itself. If zero, an idle connections will not be closed.
+`,
+	},
+	"redis_addr": {
+		defaultValue: "",
+		label:        "<address>:<port>",
+		description: `
+Specifies the Redis server address for dispatch statistics. When empty, the dispatch statistics feature is disabled. Example: ` + "`" + `localhost:6379` + "`" + `.
 `,
 	},
 }

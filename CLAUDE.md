@@ -23,33 +23,46 @@ Run a single test: `go test -run TestName -v ./path/to/package`
 
 Docker development: `script/docker/compose up` (builds and runs with MySQL). Use `script/docker/compose clean` when dependencies change.
 
-### Running Tests via Docker (Local)
+### Running Tests via Podman (Local)
 
-Prerequisites: the development docker-compose environment must be running (`script/docker/compose up`), which provides a `docker-mysql-1` container with MySQL.
+Uses a self-contained podman pod with MySQL and the official Go image. No pre-existing containers required.
+
+**1. Create pod and start MySQL:**
 
 ```bash
-podman run --rm --entrypoint bash \
-  --network container:docker-mysql-1 \
+podman pod create --name fireworq-test -p 3306
+podman run -d --pod fireworq-test --name test-mysql \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -e MYSQL_DATABASE=fireworq \
+  -e MYSQL_USER=nobody \
+  -e MYSQL_PASSWORD=nobody \
+  docker.io/library/mysql:8.0
+```
+
+**2. Wait for MySQL to be ready:**
+
+```bash
+for i in $(seq 1 30); do podman exec test-mysql mysqladmin ping -h localhost -u nobody -pnobody --silent 2>/dev/null && echo "MySQL ready" && break; echo "Waiting... ($i)"; sleep 2; done
+```
+
+**3. Run full test suite:**
+
+```bash
+podman run --rm --pod fireworq-test \
   -v "d:/htdocs/CloudRecording/vmx-fireworq/fireworq://workspace" \
   -w //workspace \
   -e "FIREWORQ_MYSQL_DSN=nobody:nobody@tcp(localhost:3306)/fireworq" \
-  docker.io/library/docker-fireworq:latest \
-  -c "git config --global --add safe.directory /workspace && make generate && make test"
+  docker.io/library/golang:1.25 \
+  bash -c "git config --global --add safe.directory /workspace && make generate && make test"
 ```
 
-Summary only (shows PASS/FAIL per package):
+Summary only (shows PASS/FAIL per package): append `2>&1 | grep -E '(^ok|^FAIL|build failed|PASS$|FAIL$)'` to the `bash -c` command.
+
+**4. Clean up:**
 
 ```bash
-podman run --rm --entrypoint bash \
-  --network container:docker-mysql-1 \
-  -v "d:/htdocs/CloudRecording/vmx-fireworq/fireworq://workspace" \
-  -w //workspace \
-  -e "FIREWORQ_MYSQL_DSN=nobody:nobody@tcp(localhost:3306)/fireworq" \
-  docker.io/library/docker-fireworq:latest \
-  -c "git config --global --add safe.directory /workspace && make generate && make test 2>&1 | grep -E '(^ok|^FAIL|build failed|PASS$|FAIL$)'"
+podman pod rm -f fireworq-test
 ```
-
-This reuses the `docker-fireworq` image and connects to the running MySQL container via shared network. `make generate` regenerates embedded assets and mocks before running tests.
 
 ## Architecture
 
@@ -88,6 +101,33 @@ Generated files: `assets.go` and `mock_*.go` — these are `.gitignore`d and mus
 ### Worker Protocol
 
 Workers receive `POST` with JSON payload body. Headers include `X-Attempt` (1-based). Workers respond with JSON `{"status":"success|failure|permanent-failure", "message":"..."}`. HTTP status code is ignored.
+
+### Dispatch Statistics (Redis)
+
+Optional feature that records webhook delivery results to Redis for failure rate monitoring. Enabled by setting `FIREWORQ_REDIS_ADDR`.
+
+**Packages:**
+- **`redisclient/`** - Global Redis client lifecycle (`Init()`, `Close()`, `IsEnabled()`). Uses `github.com/redis/go-redis/v9`. Connection failure at startup causes panic (same as MySQL). When `redis_addr` config is empty, feature is disabled and all stats calls are no-ops.
+- **`stats/`** - Dispatch statistics collection via JobQueue decorator pattern:
+  - `extractor.go` - Extracts `sub_id` from `job.FailureURL()` query parameter
+  - `writer.go` - `StatsWriter.RecordDispatch()` writes to Redis via pipeline (single round-trip)
+  - `jobqueue.go` - `JobQueue` decorator wraps `jobqueue.JobQueue`, intercepts `Complete()` to record stats asynchronously (goroutine). Injected at `service/running_queue.go:startJobQueue()`.
+
+**Redis Key Structure:**
+- 5-min bucket (Hash): `webhook:stats:{sub_id}:5m:{YYYYMMDDHHmm}` (minute truncated to 5-min boundary), TTL 2h
+- 1-hour bucket (Hash): `webhook:stats:{sub_id}:1h:{YYYYMMDDHH}`, TTL 25h
+- Hash fields: `total`, `success`, `fail`, `permanent_fail`
+- Active subscribers (Sorted Set): `webhook:active_subscribes`, score = Unix timestamp, member = sub_id
+
+**Result Classification (mirrors `jobqueue.(*jobQueue).Complete`):**
+- success → `total+1, success+1`
+- permanent fail (explicit or retries exhausted) → `total+1, fail+1, permanent_fail+1`
+- retryable fail → `total+1, fail+1`
+
+**Design Principles:**
+- Redis write failures only log errors, never block dispatch flow
+- No `sub_id` in `FailureURL` → silently skip stats
+- Async goroutine with 2-second context timeout per write
 
 ## Coding Conventions
 
