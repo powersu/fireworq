@@ -30,6 +30,7 @@ The following variables/arguments are available.
 - [`FIREWORQ_QUEUE_LOG_LEVEL`, `--queue-log-level`](#env-queue-log-level)
 - [`FIREWORQ_QUEUE_LOG_TAG`, `--queue-log-tag`](#env-queue-log-tag)
 - [`FIREWORQ_QUEUE_MYSQL_DSN`, `--queue-mysql-dsn`](#env-queue-mysql-dsn)
+- [`FIREWORQ_REDIS_ADDR`, `--redis-addr`](#env-redis-addr)
 - [`FIREWORQ_REPOSITORY_MYSQL_DSN`, `--repository-mysql-dsn`](#env-repository-mysql-dsn)
 - [`FIREWORQ_SHUTDOWN_TIMEOUT`, `--shutdown-timeout`](#env-shutdown-timeout)
 ### <a name="env-access-log">`FIREWORQ_ACCESS_LOG`, `--access-log`</a>
@@ -56,7 +57,7 @@ Specifies an interval, in milliseconds, at which a Fireworq daemon checks if con
 ### <a name="env-dispatch-idle-conn-timeout">`FIREWORQ_DISPATCH_IDLE_CONN_TIMEOUT`, `--dispatch-idle-conn-timeout`</a>
 Default: `0`
 
-Specifies the maximum amount of time of an idle (keep-alive) connection will remain idle before closing itself. If zero, an idle connections will not be closed. 
+Specifies the maximum amount of time of an idle (keep-alive) connection will remain idle before closing itself. If zero, an idle connections will not be closed.
 
 ### <a name="env-dispatch-keep-alive">`FIREWORQ_DISPATCH_KEEP_ALIVE`, `--dispatch-keep-alive`</a>
 
@@ -156,6 +157,10 @@ Specifies the value of `tag` field in a job queue log item JSON.
 ### <a name="env-queue-mysql-dsn">`FIREWORQ_QUEUE_MYSQL_DSN`, `--queue-mysql-dsn`</a>
 
 Specifies a data source name for the job queue database in a form <code><var>user</var>:<var>password</var>@tcp(<var>mysql_host</var>:<var>mysql_port</var>)/<var>database</var>?<var>options</var></code>.  This is in effect only when the [driver](#env-driver) is `mysql` and overrides [the default DSN](#env-mysql-dsn).  This should be used when you want to specify a DSN differs from [the repository DSN](#env-repository-mysql-dsn).
+
+### <a name="env-redis-addr">`FIREWORQ_REDIS_ADDR`, `--redis-addr`</a>
+
+Specifies the Redis server address for dispatch statistics. When empty, the dispatch statistics feature is disabled. Example: `localhost:6379`.
 
 ### <a name="env-repository-mysql-dsn">`FIREWORQ_REPOSITORY_MYSQL_DSN`, `--repository-mysql-dsn`</a>
 

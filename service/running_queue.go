@@ -5,6 +5,8 @@ import (
 	"github.com/fireworq/fireworq/jobqueue"
 	"github.com/fireworq/fireworq/jobqueue/factory"
 	"github.com/fireworq/fireworq/model"
+	"github.com/fireworq/fireworq/redisclient"
+	"github.com/fireworq/fireworq/stats"
 )
 
 // RunningQueue is an interface of a running queue, which is a job
@@ -24,6 +26,9 @@ type runningQueue struct {
 
 func startJobQueue(q *model.Queue) *runningQueue {
 	jq := factory.Start(q)
+	if redisclient.IsEnabled() {
+		jq = stats.NewJobQueue(jq, stats.NewStatsWriter(redisclient.Client))
+	}
 	d := dispatcher.Start(jq, q)
 	return &runningQueue{jq, d}
 }
