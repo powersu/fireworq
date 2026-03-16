@@ -47,8 +47,8 @@ func (tn *tableName) makeQueries() *sqls {
 		inspectJobsAsc:     tn.makeQuery(tmplInspectJobsAsc),
 		failedJob:          tn.makeQuery(tmplFailedJob),
 		failedJobs:         tn.makeQuery(tmplFailedJobs),
-		recentlyFailedJobs:    tn.makeQuery(tmplRecentlyFailedJobs),
-		alterAddFailureURL:   tn.makeQuery(tmplAlterAddFailureURL),
+		recentlyFailedJobs: tn.makeQuery(tmplRecentlyFailedJobs),
+		alterAddFailureURL: tn.makeQuery(tmplAlterAddFailureURL),
 	}
 }
 
