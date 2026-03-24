@@ -111,15 +111,15 @@ Optional feature that records webhook delivery results to Redis for failure rate
 **Packages:**
 - **`redisclient/`** - Global Redis client lifecycle (`Init()`, `Close()`, `IsEnabled()`). Uses `github.com/redis/go-redis/v9`. Connection failure at startup causes panic (same as MySQL). When `redis_addr` config is empty, feature is disabled and all stats calls are no-ops.
 - **`stats/`** - Dispatch statistics collection via JobQueue decorator pattern:
-  - `extractor.go` - Extracts `sub_id` from `job.FailureURL()` query parameter
+  - `extractor.go` - Extracts `org_id` and `target_env` from `job.FailureURL()` query parameters
   - `writer.go` - `StatsWriter.RecordDispatch()` writes to Redis via pipeline (single round-trip)
   - `jobqueue.go` - `JobQueue` decorator wraps `jobqueue.JobQueue`, intercepts `Complete()` to record stats asynchronously (goroutine). Injected at `service/running_queue.go:startJobQueue()`.
 
 **Redis Key Structure:**
-- 5-min bucket (Hash): `webhook:stats:{sub_id}:5m:{YYYYMMDDHHmm}` (minute truncated to 5-min boundary), TTL 2h
-- 1-hour bucket (Hash): `webhook:stats:{sub_id}:1h:{YYYYMMDDHH}`, TTL 25h
+- 5-min bucket (Hash): `webhook:{target_env}:stats:{org_id}:5m:{YYYYMMDDHHmm}` (minute truncated to 5-min boundary), TTL 2h
+- 1-hour bucket (Hash): `webhook:{target_env}:stats:{org_id}:1h:{YYYYMMDDHH}`, TTL 25h
 - Hash fields: `total`, `success`, `fail`, `permanent_fail`
-- Active subscribers (Sorted Set): `webhook:active_subscribes`, score = Unix timestamp, member = sub_id
+- Active subscribers (Sorted Set): `webhook:{target_env}:active_subscribes`, score = Unix timestamp, member = org_id
 
 **Result Classification (mirrors `jobqueue.(*jobQueue).Complete`):**
 - success → `total+1, success+1`
@@ -128,7 +128,7 @@ Optional feature that records webhook delivery results to Redis for failure rate
 
 **Design Principles:**
 - Redis write failures only log errors, never block dispatch flow
-- No `sub_id` in `FailureURL` → silently skip stats
+- No `org_id` or `target_env` in `FailureURL` → silently skip stats
 - Async goroutine with 2-second context timeout per write
 
 ## Coding Conventions

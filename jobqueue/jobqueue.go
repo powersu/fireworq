@@ -120,7 +120,7 @@ func (q *jobQueue) Complete(job Job, res *Result) {
 		}
 		// NOTE: failure callback HTTP POST disabled — dispatch statistics
 		// (stats package) now handles failure tracking via Redis.
-		// The failure_url field is still used to extract sub_id.
+		// The failure_url field is still used to extract org_id.
 		q.impl.Delete(job)
 	} else {
 		logger.Info(q.name, "retry", loggable, res.Message)
