@@ -9,6 +9,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const testEnv = "test"
+
 func setupMiniredis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	t.Helper()
 	mr := miniredis.RunT(t)
@@ -16,10 +18,10 @@ func setupMiniredis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	return mr, client
 }
 
-func bucketKeys(subID string, now time.Time) (fiveMin string, oneHour string) {
+func bucketKeys(env string, orgID string, now time.Time) (fiveMin string, oneHour string) {
 	bucket := now.Minute() - (now.Minute() % 5)
-	fiveMin = fmt.Sprintf("webhook:stats:%s:5m:%s%02d", subID, now.Format("2006010215"), bucket)
-	oneHour = fmt.Sprintf("webhook:stats:%s:1h:%s", subID, now.Format("2006010215"))
+	fiveMin = fmt.Sprintf("webhook:%s:stats:%s:5m:%s%02d", env, orgID, now.Format("2006010215"), bucket)
+	oneHour = fmt.Sprintf("webhook:%s:stats:%s:1h:%s", env, orgID, now.Format("2006010215"))
 	return
 }
 
@@ -27,10 +29,10 @@ func TestRecordDispatch_Success(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("100", true, false)
+	w.RecordDispatch(testEnv, "100", true, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys("100", now)
+	fiveMinKey, oneHourKey := bucketKeys(testEnv, "100", now)
 
 	for _, key := range []string{fiveMinKey, oneHourKey} {
 		assertHashField(t, mr, key, "total", "1")
@@ -39,17 +41,17 @@ func TestRecordDispatch_Success(t *testing.T) {
 		assertHashFieldMissing(t, mr, key, "permanent_fail")
 	}
 
-	assertActiveMember(t, mr, "100")
+	assertActiveMember(t, mr, testEnv, "100")
 }
 
 func TestRecordDispatch_RetryableFail(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("200", false, false)
+	w.RecordDispatch(testEnv, "200", false, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys("200", now)
+	fiveMinKey, oneHourKey := bucketKeys(testEnv, "200", now)
 
 	for _, key := range []string{fiveMinKey, oneHourKey} {
 		assertHashField(t, mr, key, "total", "1")
@@ -63,10 +65,10 @@ func TestRecordDispatch_PermanentFail(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("300", false, true)
+	w.RecordDispatch(testEnv, "300", false, true)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys("300", now)
+	fiveMinKey, oneHourKey := bucketKeys(testEnv, "300", now)
 
 	for _, key := range []string{fiveMinKey, oneHourKey} {
 		assertHashField(t, mr, key, "total", "1")
@@ -80,13 +82,13 @@ func TestRecordDispatch_MultipleCalls_Accumulate(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("400", true, false)
-	w.RecordDispatch("400", true, false)
-	w.RecordDispatch("400", false, false)
-	w.RecordDispatch("400", false, true)
+	w.RecordDispatch(testEnv, "400", true, false)
+	w.RecordDispatch(testEnv, "400", true, false)
+	w.RecordDispatch(testEnv, "400", false, false)
+	w.RecordDispatch(testEnv, "400", false, true)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("400", now)
+	fiveMinKey, _ := bucketKeys(testEnv, "400", now)
 
 	assertHashField(t, mr, fiveMinKey, "total", "4")
 	assertHashField(t, mr, fiveMinKey, "success", "2")
@@ -98,10 +100,10 @@ func TestRecordDispatch_TTL(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("500", true, false)
+	w.RecordDispatch(testEnv, "500", true, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys("500", now)
+	fiveMinKey, oneHourKey := bucketKeys(testEnv, "500", now)
 
 	ttl5m := mr.TTL(fiveMinKey)
 	if ttl5m != 2*time.Hour {
@@ -114,32 +116,45 @@ func TestRecordDispatch_TTL(t *testing.T) {
 	}
 }
 
-func TestRecordDispatch_EmptySubscribeID(t *testing.T) {
+func TestRecordDispatch_EmptyOrgID(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("", true, false)
+	w.RecordDispatch(testEnv, "", true, false)
 
 	keys := mr.Keys()
 	if len(keys) != 0 {
-		t.Errorf("expected no keys for empty subscribe_id, got %v", keys)
+		t.Errorf("expected no keys for empty org_id, got %v", keys)
+	}
+}
+
+func TestRecordDispatch_EmptyTargetEnv(t *testing.T) {
+	mr, client := setupMiniredis(t)
+	w := NewWriter(client)
+
+	w.RecordDispatch("", "100", true, false)
+
+	keys := mr.Keys()
+	if len(keys) != 0 {
+		t.Errorf("expected no keys for empty target_env, got %v", keys)
 	}
 }
 
 func TestRecordDispatch_NilWriter(t *testing.T) {
 	var w *Writer
 	// should not panic
-	w.RecordDispatch("100", true, false)
+	w.RecordDispatch(testEnv, "100", true, false)
 }
 
 func TestRecordDispatch_ActiveSubscribers(t *testing.T) {
 	mr, client := setupMiniredis(t)
 	w := NewWriter(client)
 
-	w.RecordDispatch("600", true, false)
-	w.RecordDispatch("700", false, false)
+	w.RecordDispatch(testEnv, "600", true, false)
+	w.RecordDispatch(testEnv, "700", false, false)
 
-	members, err := mr.ZMembers("webhook:active_subscribes")
+	activeKey := fmt.Sprintf("webhook:%s:active_subscribes", testEnv)
+	members, err := mr.ZMembers(activeKey)
 	if err != nil {
 		t.Fatalf("failed to get sorted set members: %v", err)
 	}
@@ -174,9 +189,10 @@ func assertHashFieldMissing(t *testing.T, mr *miniredis.Miniredis, key, field st
 	}
 }
 
-func assertActiveMember(t *testing.T, mr *miniredis.Miniredis, member string) {
+func assertActiveMember(t *testing.T, mr *miniredis.Miniredis, env string, member string) {
 	t.Helper()
-	members, err := mr.ZMembers("webhook:active_subscribes")
+	activeKey := fmt.Sprintf("webhook:%s:active_subscribes", env)
+	members, err := mr.ZMembers(activeKey)
 	if err != nil {
 		t.Fatalf("failed to get sorted set members: %v", err)
 	}
@@ -185,5 +201,5 @@ func assertActiveMember(t *testing.T, mr *miniredis.Miniredis, member string) {
 			return
 		}
 	}
-	t.Errorf("expected member %q in active_subscribes, got %v", member, members)
+	t.Errorf("expected member %q in %s, got %v", member, activeKey, members)
 }

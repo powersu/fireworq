@@ -23,13 +23,15 @@ func NewJobQueue(inner jobqueue.JobQueue, writer *Writer) jobqueue.JobQueue {
 // dispatch statistics to Redis. The result classification mirrors the
 // logic in jobqueue.(*jobQueue).Complete.
 func (q *JobQueue) Complete(job jobqueue.Job, res *jobqueue.Result) {
-	// Capture subscribe_id before delegation (job may be deleted after)
-	subscribeID := ExtractSubscribeID(job.FailureURL())
+	// Capture params before delegation (job may be deleted after)
+	failureURL := job.FailureURL()
+	orgID := ExtractOrgID(failureURL)
+	targetEnv := ExtractTargetEnv(failureURL)
 
 	// Delegate to the real queue first
 	q.JobQueue.Complete(job, res)
 
-	if subscribeID == "" {
+	if orgID == "" || targetEnv == "" {
 		return
 	}
 
@@ -37,5 +39,5 @@ func (q *JobQueue) Complete(job jobqueue.Job, res *jobqueue.Result) {
 	// Permanent fail: explicit permanent-failure status, or retries exhausted
 	isPermanentFail := res.IsPermanentFailure() || (!isSuccess && job.RetryCount() == 0)
 
-	go q.writer.RecordDispatch(subscribeID, isSuccess, isPermanentFail)
+	go q.writer.RecordDispatch(targetEnv, orgID, isSuccess, isPermanentFail)
 }

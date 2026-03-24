@@ -73,7 +73,7 @@ func TestJobQueueDecorator_Success(t *testing.T) {
 	jq := NewJobQueue(inner, writer)
 
 	job := &mockJob{
-		failureURL: "http://example.com/cb?sub_id=1444&org_id=1",
+		failureURL: "http://example.com/cb?org_id=191&target_env=test",
 		retryCount: 3,
 	}
 	res := &jobqueue.Result{Status: jobqueue.ResultStatusSuccess}
@@ -90,10 +90,10 @@ func TestJobQueueDecorator_Success(t *testing.T) {
 
 	// Verify Redis keys
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("1444", now)
+	fiveMinKey, _ := bucketKeys("test", "191", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "success", "1")
-	assertActiveMember(t, mr, "1444")
+	assertActiveMember(t, mr, "test", "191")
 }
 
 func TestJobQueueDecorator_RetryableFail(t *testing.T) {
@@ -105,7 +105,7 @@ func TestJobQueueDecorator_RetryableFail(t *testing.T) {
 	jq := NewJobQueue(inner, writer)
 
 	job := &mockJob{
-		failureURL: "http://example.com/cb?sub_id=2000",
+		failureURL: "http://example.com/cb?org_id=200&target_env=test",
 		retryCount: 2, // has retries left
 	}
 	res := &jobqueue.Result{Status: jobqueue.ResultStatusFailure}
@@ -114,7 +114,7 @@ func TestJobQueueDecorator_RetryableFail(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("2000", now)
+	fiveMinKey, _ := bucketKeys("test", "200", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashFieldMissing(t, mr, fiveMinKey, "permanent_fail")
@@ -129,7 +129,7 @@ func TestJobQueueDecorator_PermanentFail_ExplicitStatus(t *testing.T) {
 	jq := NewJobQueue(inner, writer)
 
 	job := &mockJob{
-		failureURL: "http://example.com/cb?sub_id=3000",
+		failureURL: "http://example.com/cb?org_id=300&target_env=test",
 		retryCount: 5, // retries left, but status is permanent
 	}
 	res := &jobqueue.Result{Status: jobqueue.ResultStatusPermanentFailure}
@@ -138,7 +138,7 @@ func TestJobQueueDecorator_PermanentFail_ExplicitStatus(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("3000", now)
+	fiveMinKey, _ := bucketKeys("test", "300", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashField(t, mr, fiveMinKey, "permanent_fail", "1")
@@ -153,7 +153,7 @@ func TestJobQueueDecorator_PermanentFail_RetriesExhausted(t *testing.T) {
 	jq := NewJobQueue(inner, writer)
 
 	job := &mockJob{
-		failureURL: "http://example.com/cb?sub_id=4000",
+		failureURL: "http://example.com/cb?org_id=400&target_env=test",
 		retryCount: 0, // no retries left
 	}
 	res := &jobqueue.Result{Status: jobqueue.ResultStatusFailure}
@@ -162,7 +162,7 @@ func TestJobQueueDecorator_PermanentFail_RetriesExhausted(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("4000", now)
+	fiveMinKey, _ := bucketKeys("test", "400", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashField(t, mr, fiveMinKey, "permanent_fail", "1")
@@ -194,7 +194,7 @@ func TestJobQueueDecorator_NoFailureURL_SkipsStats(t *testing.T) {
 	}
 }
 
-func TestJobQueueDecorator_NoSubID_SkipsStats(t *testing.T) {
+func TestJobQueueDecorator_NoOrgID_SkipsStats(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	writer := NewWriter(client)
@@ -202,8 +202,33 @@ func TestJobQueueDecorator_NoSubID_SkipsStats(t *testing.T) {
 
 	jq := NewJobQueue(inner, writer)
 
-	// failure URL exists but no sub_id param
-	job := &mockJob{failureURL: "http://example.com/cb?org_id=1"}
+	// failure URL exists but no org_id param
+	job := &mockJob{failureURL: "http://example.com/cb?target_env=test"}
+	res := &jobqueue.Result{Status: jobqueue.ResultStatusSuccess}
+
+	jq.Complete(job, res)
+	time.Sleep(100 * time.Millisecond)
+
+	if len(inner.completed) != 1 {
+		t.Fatalf("expected 1 completion, got %d", len(inner.completed))
+	}
+
+	keys := mr.Keys()
+	if len(keys) != 0 {
+		t.Errorf("expected no Redis keys, got %v", keys)
+	}
+}
+
+func TestJobQueueDecorator_NoTargetEnv_SkipsStats(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	writer := NewWriter(client)
+	inner := &mockJobQueue{}
+
+	jq := NewJobQueue(inner, writer)
+
+	// failure URL has org_id but no target_env
+	job := &mockJob{failureURL: "http://example.com/cb?org_id=191"}
 	res := &jobqueue.Result{Status: jobqueue.ResultStatusSuccess}
 
 	jq.Complete(job, res)
@@ -237,10 +262,10 @@ func TestJobQueueDecorator_MultipleDispatches(t *testing.T) {
 
 	jq := NewJobQueue(inner, writer)
 
-	// Simulate 3 dispatches for same subscriber
+	// Simulate 3 dispatches for same org
 	for i := 0; i < 3; i++ {
 		job := &mockJob{
-			failureURL: "http://example.com/cb?sub_id=5000",
+			failureURL: "http://example.com/cb?org_id=500&target_env=test",
 			retryCount: 2,
 		}
 		res := &jobqueue.Result{Status: jobqueue.ResultStatusSuccess}
@@ -250,17 +275,18 @@ func TestJobQueueDecorator_MultipleDispatches(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("5000", now)
+	fiveMinKey, _ := bucketKeys("test", "500", now)
 	assertHashField(t, mr, fiveMinKey, "total", "3")
 	assertHashField(t, mr, fiveMinKey, "success", "3")
 
 	// Active set should have exactly 1 member (dedup by ZADD)
-	members, err := mr.ZMembers("webhook:active_subscribes")
+	activeKey := fmt.Sprintf("webhook:%s:active_subscribes", "test")
+	members, err := mr.ZMembers(activeKey)
 	if err != nil {
 		t.Fatalf("ZMembers error: %v", err)
 	}
-	if len(members) != 1 || members[0] != "5000" {
-		t.Errorf("expected [5000], got %v", members)
+	if len(members) != 1 || members[0] != "500" {
+		t.Errorf("expected [500], got %v", members)
 	}
 }
 
@@ -278,14 +304,14 @@ func TestBucketKeyFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		now := time.Date(2026, 3, 16, 14, tt.minute, 0, 0, time.UTC)
-		fiveMinKey, oneHourKey := bucketKeys("100", now)
+		fiveMinKey, oneHourKey := bucketKeys("staging", "100", now)
 
-		wantFiveMin := fmt.Sprintf("webhook:stats:100:5m:2026031614%02d", tt.wantBucket)
+		wantFiveMin := fmt.Sprintf("webhook:staging:stats:100:5m:2026031614%02d", tt.wantBucket)
 		if fiveMinKey != wantFiveMin {
 			t.Errorf("minute=%d: fiveMinKey = %q, want %q", tt.minute, fiveMinKey, wantFiveMin)
 		}
 
-		wantOneHour := "webhook:stats:100:1h:2026031614"
+		wantOneHour := "webhook:staging:stats:100:1h:2026031614"
 		if oneHourKey != wantOneHour {
 			t.Errorf("minute=%d: oneHourKey = %q, want %q", tt.minute, oneHourKey, wantOneHour)
 		}

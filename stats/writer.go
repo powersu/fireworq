@@ -25,8 +25,8 @@ func NewWriter(client *redis.Client) *Writer {
 //
 // Errors are logged but never propagated — dispatch must not be
 // blocked by statistics failures.
-func (w *Writer) RecordDispatch(subscribeID string, isSuccess bool, isPermanentFail bool) {
-	if w == nil || w.client == nil || subscribeID == "" {
+func (w *Writer) RecordDispatch(targetEnv string, orgID string, isSuccess bool, isPermanentFail bool) {
+	if w == nil || w.client == nil || orgID == "" || targetEnv == "" {
 		return
 	}
 
@@ -37,12 +37,12 @@ func (w *Writer) RecordDispatch(subscribeID string, isSuccess bool, isPermanentF
 
 	// 5-minute bucket: truncate minute to 5-min boundary (00,05,10,...,55)
 	fiveMinBucket := now.Minute() - (now.Minute() % 5)
-	fiveMinKey := fmt.Sprintf("webhook:stats:%s:5m:%s%02d",
-		subscribeID, now.Format("2006010215"), fiveMinBucket)
+	fiveMinKey := fmt.Sprintf("webhook:%s:stats:%s:5m:%s%02d",
+		targetEnv, orgID, now.Format("2006010215"), fiveMinBucket)
 
 	// 1-hour bucket
-	oneHourKey := fmt.Sprintf("webhook:stats:%s:1h:%s",
-		subscribeID, now.Format("2006010215"))
+	oneHourKey := fmt.Sprintf("webhook:%s:stats:%s:1h:%s",
+		targetEnv, orgID, now.Format("2006010215"))
 
 	pipe := w.client.Pipeline()
 
@@ -65,12 +65,13 @@ func (w *Writer) RecordDispatch(subscribeID string, isSuccess bool, isPermanentF
 	pipe.Expire(ctx, oneHourKey, 25*time.Hour)
 
 	// Update active subscribers sorted set
-	pipe.ZAdd(ctx, "webhook:active_subscribes", redis.Z{
+	activeKey := fmt.Sprintf("webhook:%s:active_subscribes", targetEnv)
+	pipe.ZAdd(ctx, activeKey, redis.Z{
 		Score:  float64(now.Unix()),
-		Member: subscribeID,
+		Member: orgID,
 	})
 
 	if _, err := pipe.Exec(ctx); err != nil {
-		log.Error().Msgf("Failed to write dispatch stats to Redis for sub_id=%s: %s", subscribeID, err)
+		log.Error().Msgf("Failed to write dispatch stats to Redis for env=%s org_id=%s: %s", targetEnv, orgID, err)
 	}
 }
