@@ -90,7 +90,7 @@ func TestJobQueueDecorator_Success(t *testing.T) {
 
 	// Verify Redis keys
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("test", "191", now)
+	fiveMinKey, _, _ := bucketKeys("test", "191", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "success", "1")
 	assertActiveMember(t, mr, "test", "191")
@@ -114,7 +114,7 @@ func TestJobQueueDecorator_RetryableFail(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("test", "200", now)
+	fiveMinKey, _, _ := bucketKeys("test", "200", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashFieldMissing(t, mr, fiveMinKey, "permanent_fail")
@@ -138,7 +138,7 @@ func TestJobQueueDecorator_PermanentFail_ExplicitStatus(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("test", "300", now)
+	fiveMinKey, _, _ := bucketKeys("test", "300", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashField(t, mr, fiveMinKey, "permanent_fail", "1")
@@ -162,7 +162,7 @@ func TestJobQueueDecorator_PermanentFail_RetriesExhausted(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("test", "400", now)
+	fiveMinKey, _, _ := bucketKeys("test", "400", now)
 	assertHashField(t, mr, fiveMinKey, "total", "1")
 	assertHashField(t, mr, fiveMinKey, "fail", "1")
 	assertHashField(t, mr, fiveMinKey, "permanent_fail", "1")
@@ -275,7 +275,7 @@ func TestJobQueueDecorator_MultipleDispatches(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys("test", "500", now)
+	fiveMinKey, _, _ := bucketKeys("test", "500", now)
 	assertHashField(t, mr, fiveMinKey, "total", "3")
 	assertHashField(t, mr, fiveMinKey, "success", "3")
 
@@ -304,7 +304,7 @@ func TestBucketKeyFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		now := time.Date(2026, 3, 16, 14, tt.minute, 0, 0, time.UTC)
-		fiveMinKey, oneHourKey := bucketKeys("staging", "100", now)
+		fiveMinKey, oneHourKey, dailyKey := bucketKeys("staging", "100", now)
 
 		wantFiveMin := fmt.Sprintf("webhook:staging:stats:100:5m:2026031614%02d", tt.wantBucket)
 		if fiveMinKey != wantFiveMin {
@@ -314,6 +314,11 @@ func TestBucketKeyFormat(t *testing.T) {
 		wantOneHour := "webhook:staging:stats:100:1h:2026031614"
 		if oneHourKey != wantOneHour {
 			t.Errorf("minute=%d: oneHourKey = %q, want %q", tt.minute, oneHourKey, wantOneHour)
+		}
+
+		wantDaily := "webhook:staging:stats:100:1d:20260316"
+		if dailyKey != wantDaily {
+			t.Errorf("minute=%d: dailyKey = %q, want %q", tt.minute, dailyKey, wantDaily)
 		}
 	}
 }
