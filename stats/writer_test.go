@@ -18,10 +18,11 @@ func setupMiniredis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
 	return mr, client
 }
 
-func bucketKeys(env string, orgID string, now time.Time) (fiveMin string, oneHour string) {
+func bucketKeys(env string, orgID string, now time.Time) (fiveMin string, oneHour string, daily string) {
 	bucket := now.Minute() - (now.Minute() % 5)
 	fiveMin = fmt.Sprintf("webhook:%s:stats:%s:5m:%s%02d", env, orgID, now.Format("2006010215"), bucket)
 	oneHour = fmt.Sprintf("webhook:%s:stats:%s:1h:%s", env, orgID, now.Format("2006010215"))
+	daily = fmt.Sprintf("webhook:%s:stats:%s:1d:%s", env, orgID, now.Format("20060102"))
 	return
 }
 
@@ -32,9 +33,9 @@ func TestRecordDispatch_Success(t *testing.T) {
 	w.RecordDispatch(testEnv, "100", true, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys(testEnv, "100", now)
+	fiveMinKey, oneHourKey, dailyKey := bucketKeys(testEnv, "100", now)
 
-	for _, key := range []string{fiveMinKey, oneHourKey} {
+	for _, key := range []string{fiveMinKey, oneHourKey, dailyKey} {
 		assertHashField(t, mr, key, "total", "1")
 		assertHashField(t, mr, key, "success", "1")
 		assertHashFieldMissing(t, mr, key, "fail")
@@ -51,9 +52,9 @@ func TestRecordDispatch_RetryableFail(t *testing.T) {
 	w.RecordDispatch(testEnv, "200", false, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys(testEnv, "200", now)
+	fiveMinKey, oneHourKey, dailyKey := bucketKeys(testEnv, "200", now)
 
-	for _, key := range []string{fiveMinKey, oneHourKey} {
+	for _, key := range []string{fiveMinKey, oneHourKey, dailyKey} {
 		assertHashField(t, mr, key, "total", "1")
 		assertHashField(t, mr, key, "fail", "1")
 		assertHashFieldMissing(t, mr, key, "success")
@@ -68,9 +69,9 @@ func TestRecordDispatch_PermanentFail(t *testing.T) {
 	w.RecordDispatch(testEnv, "300", false, true)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys(testEnv, "300", now)
+	fiveMinKey, oneHourKey, dailyKey := bucketKeys(testEnv, "300", now)
 
-	for _, key := range []string{fiveMinKey, oneHourKey} {
+	for _, key := range []string{fiveMinKey, oneHourKey, dailyKey} {
 		assertHashField(t, mr, key, "total", "1")
 		assertHashField(t, mr, key, "fail", "1")
 		assertHashField(t, mr, key, "permanent_fail", "1")
@@ -88,7 +89,7 @@ func TestRecordDispatch_MultipleCalls_Accumulate(t *testing.T) {
 	w.RecordDispatch(testEnv, "400", false, true)
 
 	now := time.Now()
-	fiveMinKey, _ := bucketKeys(testEnv, "400", now)
+	fiveMinKey, _, _ := bucketKeys(testEnv, "400", now)
 
 	assertHashField(t, mr, fiveMinKey, "total", "4")
 	assertHashField(t, mr, fiveMinKey, "success", "2")
@@ -103,7 +104,7 @@ func TestRecordDispatch_TTL(t *testing.T) {
 	w.RecordDispatch(testEnv, "500", true, false)
 
 	now := time.Now()
-	fiveMinKey, oneHourKey := bucketKeys(testEnv, "500", now)
+	fiveMinKey, oneHourKey, dailyKey := bucketKeys(testEnv, "500", now)
 
 	ttl5m := mr.TTL(fiveMinKey)
 	if ttl5m != 2*time.Hour {
@@ -113,6 +114,11 @@ func TestRecordDispatch_TTL(t *testing.T) {
 	ttl1h := mr.TTL(oneHourKey)
 	if ttl1h != 25*time.Hour {
 		t.Errorf("1-hour bucket TTL = %v, want %v", ttl1h, 25*time.Hour)
+	}
+
+	ttl1d := mr.TTL(dailyKey)
+	if ttl1d != 7*24*time.Hour {
+		t.Errorf("daily bucket TTL = %v, want %v", ttl1d, 7*24*time.Hour)
 	}
 }
 

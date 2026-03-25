@@ -44,10 +44,14 @@ func (w *Writer) RecordDispatch(targetEnv string, orgID string, isSuccess bool, 
 	oneHourKey := fmt.Sprintf("webhook:%s:stats:%s:1h:%s",
 		targetEnv, orgID, now.Format("2006010215"))
 
+	// Daily bucket
+	dailyKey := fmt.Sprintf("webhook:%s:stats:%s:1d:%s",
+		targetEnv, orgID, now.Format("20060102"))
+
 	pipe := w.client.Pipeline()
 
-	// Increment counters for both buckets
-	for _, key := range []string{fiveMinKey, oneHourKey} {
+	// Increment counters for all buckets
+	for _, key := range []string{fiveMinKey, oneHourKey, dailyKey} {
 		pipe.HIncrBy(ctx, key, "total", 1)
 		switch {
 		case isSuccess:
@@ -63,6 +67,7 @@ func (w *Writer) RecordDispatch(targetEnv string, orgID string, isSuccess bool, 
 	// Set TTLs
 	pipe.Expire(ctx, fiveMinKey, 2*time.Hour)
 	pipe.Expire(ctx, oneHourKey, 25*time.Hour)
+	pipe.Expire(ctx, dailyKey, 7*24*time.Hour)
 
 	// Update active subscribers sorted set
 	activeKey := fmt.Sprintf("webhook:%s:active_subscribes", targetEnv)

@@ -60,7 +60,17 @@ podman run --rm --pod fireworq-test \
 
 Summary only (shows PASS/FAIL per package): append `2>&1 | grep -E '(^ok|^FAIL|build failed|PASS$|FAIL$)'` to the `bash -c` command.
 
-**4. Clean up:**
+**4. Re-run tests (pod already exists):**
+
+The pod can be reused. If it was stopped, start it first:
+
+```bash
+podman pod start fireworq-test
+```
+
+Then run step 3 again.
+
+**5. Clean up (optional, only when pod config needs to change):**
 
 ```bash
 podman pod rm -f fireworq-test
@@ -118,6 +128,7 @@ Optional feature that records webhook delivery results to Redis for failure rate
 **Redis Key Structure:**
 - 5-min bucket (Hash): `webhook:{target_env}:stats:{org_id}:5m:{YYYYMMDDHHmm}` (minute truncated to 5-min boundary), TTL 2h
 - 1-hour bucket (Hash): `webhook:{target_env}:stats:{org_id}:1h:{YYYYMMDDHH}`, TTL 25h
+- Daily bucket (Hash): `webhook:{target_env}:stats:{org_id}:1d:{YYYYMMDD}`, TTL 7d
 - Hash fields: `total`, `success`, `fail`, `permanent_fail`
 - Active subscribers (Sorted Set): `webhook:{target_env}:active_subscribes`, score = Unix timestamp, member = org_id
 
