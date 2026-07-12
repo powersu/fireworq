@@ -78,6 +78,30 @@ Then run step 3 again.
 podman pod rm -f fireworq-test
 ```
 
+## CI & Release Workflows
+
+GitHub Actions live in `.github/workflows/`. Trigger conditions matter — pushing a working branch (e.g. `v1.6.17`) triggers **nothing**:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yaml` | push to `master`, any `pull_request` | Runs the test suite + reports coverage to Coveralls |
+| `genauthors.yaml` | push to `master` | Regenerates `AUTHORS` |
+| `release.yaml` | push a tag matching `v*` | Publishes GitHub release artifacts + Docker images |
+
+### Merging into master
+
+After merging a branch into `master` and pushing `master`, **`ci.yaml` and `genauthors.yaml` run, but `release.yaml` does NOT** — release is tag-triggered, not branch-triggered. A branch merely *named* `v1.6.17` is not a tag; pushing it (or master) never triggers a release build.
+
+### Producing a release build
+
+A release build (GitHub release zip artifacts for linux/amd64 + darwin/amd64, plus multi-arch Docker images to Docker Hub and ghcr) only happens when a `v*` tag is pushed. Steps:
+
+1. Bump `Version` in `version.go` (keep the fork's `-vmx` suffix, e.g. `1.6.17-vmx`) and commit.
+2. Merge into `master` and push (runs CI).
+3. Create and push a tag whose name is **exactly** `v` + the `version.go` value, e.g. `git tag v1.6.17-vmx && git push origin v1.6.17-vmx`.
+
+**Tag/version must match.** `script/ci/can-release` gates the release and enforces two things: the tag must start with `v0`–`v9`, and it must equal `v$(gobump show -r)` — i.e. `v` + the exact `Version` string in `version.go`. A mismatch aborts the release (no artifacts produced). Always bump `version.go` before tagging.
+
 ## Architecture
 
 ### Request Flow
