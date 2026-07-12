@@ -94,13 +94,27 @@ After merging a branch into `master` and pushing `master`, **`ci.yaml` and `gena
 
 ### Producing a release build
 
-A release build (GitHub release zip artifacts for linux/amd64 + darwin/amd64, plus multi-arch Docker images to Docker Hub and ghcr) only happens when a `v*` tag is pushed. Steps:
+A release build (GitHub release zip artifacts for linux/amd64 + darwin/amd64, plus multi-arch Docker images to Docker Hub and ghcr) only happens when a `v*` tag is pushed. This fork tags releases as `v<version>-vmx` (e.g. `v1.6.16-vmx`, `v1.6.15-vmx`), matching the `-vmx` suffix in `version.go`.
 
-1. Bump `Version` in `version.go` (keep the fork's `-vmx` suffix, e.g. `1.6.17-vmx`) and commit.
-2. Merge into `master` and push (runs CI).
-3. Create and push a tag whose name is **exactly** `v` + the `version.go` value, e.g. `git tag v1.6.17-vmx && git push origin v1.6.17-vmx`.
+End-to-end flow (run before tagging a new release):
+
+```
+1. Bump Version in version.go  →  "1.6.17-vmx"   (keep the -vmx suffix)
+2. git commit                   (on the working branch, e.g. v1.6.17)
+3. git push  the working branch                  ← triggers NOTHING
+4. Merge the branch into master
+5. git push master                               ← triggers ci.yaml + genauthors.yaml
+6. Wait for CI to go green
+7. git pull master               (see reminder below)
+8. git tag v1.6.17-vmx           (on the merged master commit)
+9. git push origin v1.6.17-vmx                   ← triggers release.yaml → release build
+```
 
 **Tag/version must match.** `script/ci/can-release` gates the release and enforces two things: the tag must start with `v0`–`v9`, and it must equal `v$(gobump show -r)` — i.e. `v` + the exact `Version` string in `version.go`. A mismatch aborts the release (no artifacts produced). Always bump `version.go` before tagging.
+
+**Two reminders:**
+- Tag the *merged* master commit, so the release is built from the commit that actually contains your changes.
+- `genauthors.yaml` runs on the master push and may auto-commit an `AUTHORS` update to master. `git pull master` before tagging so the tag lands on the latest commit and the later push does not conflict.
 
 ## Architecture
 
