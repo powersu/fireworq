@@ -31,6 +31,8 @@ Uses a self-contained podman pod with MySQL and the official Go image. No pre-ex
 
 **1. Create pod and start MySQL:**
 
+Uses `mysql:8.4` to match the production AWS RDS MySQL 8.4 engine. `--mysql-native-password=ON` re-enables the native password plugin (disabled by default in 8.4) to mirror the AWS RDS instance, which keeps it enabled after an 8.0 → 8.4 upgrade.
+
 ```bash
 podman pod create --name fireworq-test -p 3306
 podman run -d --pod fireworq-test --name test-mysql \
@@ -38,7 +40,7 @@ podman run -d --pod fireworq-test --name test-mysql \
   -e MYSQL_DATABASE=fireworq \
   -e MYSQL_USER=nobody \
   -e MYSQL_PASSWORD=nobody \
-  docker.io/library/mysql:8.0
+  docker.io/library/mysql:8.4 --mysql-native-password=ON
 ```
 
 **2. Wait for MySQL to be ready:**
