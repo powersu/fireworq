@@ -31,6 +31,8 @@ Uses a self-contained podman pod with MySQL and the official Go image. No pre-ex
 
 **1. Create pod and start MySQL:**
 
+Uses `mysql:8.4` to match the production AWS RDS MySQL 8.4 engine. `--mysql-native-password=ON` re-enables the native password plugin (disabled by default in 8.4) to mirror the AWS RDS instance, which keeps it enabled after an 8.0 → 8.4 upgrade.
+
 ```bash
 podman pod create --name fireworq-test -p 3306
 podman run -d --pod fireworq-test --name test-mysql \
@@ -38,7 +40,7 @@ podman run -d --pod fireworq-test --name test-mysql \
   -e MYSQL_DATABASE=fireworq \
   -e MYSQL_USER=nobody \
   -e MYSQL_PASSWORD=nobody \
-  docker.io/library/mysql:8.0
+  docker.io/library/mysql:8.4 --mysql-native-password=ON
 ```
 
 **2. Wait for MySQL to be ready:**
@@ -75,6 +77,44 @@ Then run step 3 again.
 ```bash
 podman pod rm -f fireworq-test
 ```
+
+## CI & Release Workflows
+
+GitHub Actions live in `.github/workflows/`. Trigger conditions matter — pushing a working branch (e.g. `v1.6.17`) triggers **nothing**:
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `ci.yaml` | push to `master`, any `pull_request` | Runs the test suite + reports coverage to Coveralls |
+| `genauthors.yaml` | push to `master` | Regenerates `AUTHORS` |
+| `release.yaml` | push a tag matching `v*` | Publishes GitHub release artifacts + Docker images |
+
+### Merging into master
+
+After merging a branch into `master` and pushing `master`, **`ci.yaml` and `genauthors.yaml` run, but `release.yaml` does NOT** — release is tag-triggered, not branch-triggered. A branch merely *named* `v1.6.17` is not a tag; pushing it (or master) never triggers a release build.
+
+### Producing a release build
+
+A release build (GitHub release zip artifacts for linux/amd64 + darwin/amd64, plus multi-arch Docker images to Docker Hub and ghcr) only happens when a `v*` tag is pushed. This fork tags releases as `v<version>-vmx` (e.g. `v1.6.16-vmx`, `v1.6.15-vmx`), matching the `-vmx` suffix in `version.go`.
+
+End-to-end flow (run before tagging a new release):
+
+```
+1. Bump Version in version.go  →  "1.6.17-vmx"   (keep the -vmx suffix)
+2. git commit                   (on the working branch, e.g. v1.6.17)
+3. git push  the working branch                  ← triggers NOTHING
+4. Merge the branch into master
+5. git push master                               ← triggers ci.yaml + genauthors.yaml
+6. Wait for CI to go green
+7. git pull master               (see reminder below)
+8. git tag v1.6.17-vmx           (on the merged master commit)
+9. git push origin v1.6.17-vmx                   ← triggers release.yaml → release build
+```
+
+**Tag/version must match.** `script/ci/can-release` gates the release and enforces two things: the tag must start with `v0`–`v9`, and it must equal `v$(gobump show -r)` — i.e. `v` + the exact `Version` string in `version.go`. A mismatch aborts the release (no artifacts produced). Always bump `version.go` before tagging.
+
+**Two reminders:**
+- Tag the *merged* master commit, so the release is built from the commit that actually contains your changes.
+- `genauthors.yaml` runs on the master push and may auto-commit an `AUTHORS` update to master. `git pull master` before tagging so the tag lands on the latest commit and the later push does not conflict.
 
 ## Architecture
 
