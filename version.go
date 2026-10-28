@@ -5,7 +5,7 @@ const (
 	Name = "Fireworq"
 
 	// Version is the version of the application.
-	Version = "1.6.9-vmx"
+	Version = "1.6.9-vmx.patch-20261026"
 )
 
 var (
