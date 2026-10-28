@@ -22,4 +22,5 @@ type gobump >/dev/null || go install github.com/x-motemen/gobump/cmd/gobump@late
     exit 1
 }
 
-script/can-release || exit 1
+# AUTHORS.md is only refreshed by fireworq-bot on master, which this fork does not use.
+# script/can-release || exit 1
